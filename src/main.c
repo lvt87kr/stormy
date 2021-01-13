@@ -38,7 +38,7 @@ typedef struct _stormy_data {
 int main(void) {
     FILE *file;
     
-    JsonNode *root, *node;
+    JsonNode *root, *node, *node_tmp;
     
     long file_size;
     char buffer[BUF_SIZE];
@@ -66,8 +66,44 @@ int main(void) {
         return EXIT_FAILURE;
     }
     
-    json_foreach(node, root)
-        printf("%s\n", node->key);
+    node = json_first_child(root);
+    
+    /* node: `name` */
+    
+    printf("%s: %s,\n", node->key, node->string_);
+    
+    if (node != NULL)
+        node = node->next;
+    
+    /* node: `object` */
+    
+    printf("%s: [\n", node->key);
+    
+    json_foreach(node_tmp, node) {
+        printf(
+            "    %s: %d\n", 
+            node_tmp->key, 
+            (int) node_tmp->number_
+        );
+    }
+    
+    printf("],\n");
+    
+    if (node != NULL)
+        node = node->next;
+    
+    /* node: `array` */
+    
+    printf("%s: [\n", node->key);
+    
+    json_foreach(node_tmp, node) {
+        printf(
+            "    %d,\n", 
+            (int) node_tmp->number_
+        );
+    }
+    
+    printf("]\n");
     
     return EXIT_SUCCESS;
 }
