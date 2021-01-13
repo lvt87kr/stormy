@@ -20,12 +20,54 @@
     SOFTWARE.
 */
 
-#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "json.h"
 
+#define BUF_SIZE 1024
+
+typedef struct _stormy_data {
+    char *name;
+    uint8_t three;
+    uint8_t five;
+    uint8_t *array;
+} StormyData;
+
 int main(void) {
-    /* TODO: ... */
+    FILE *file;
     
-    return 0;
+    JsonNode *root, *node;
+    
+    long file_size;
+    char buffer[BUF_SIZE];
+    
+    if ((file = fopen("../res/stormy.json", "rb")) == NULL) {
+        fprintf(stderr, "stormy: fopen() error\n");
+        return EXIT_FAILURE;
+    }
+    
+    fseek(file, 0, SEEK_END);
+    file_size = ftell(file);
+    rewind(file);
+    
+    if (fread(buffer, sizeof(char), BUF_SIZE, file) != file_size) {
+        fprintf(stderr, "stormy: fread() error\n");
+        return EXIT_FAILURE;
+    }
+    
+    buffer[file_size] = '\0';
+    
+    root = json_decode(buffer);
+    
+    if (root == NULL) {
+        fprintf(stderr, "stormy: json_decode() error\n");
+        return EXIT_FAILURE;
+    }
+    
+    json_foreach(node, root)
+        printf("%s\n", node->key);
+    
+    return EXIT_SUCCESS;
 }
