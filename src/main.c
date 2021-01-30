@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "json.h"
 
@@ -35,75 +36,92 @@ typedef struct _stormy_data {
     uint8_t *array;
 } StormyData;
 
-int main(void) {
+static StormyData stormy_data;
+
+void load_json_file() {
     FILE *file;
     
-    JsonNode *root, *node, *node_tmp;
+    JsonNode *root, *current;
+    JsonNode *object, *array;
     
-    long file_size;
-    char buffer[BUF_SIZE];
+    int array_index, input_size;
     
-    if ((file = fopen("../res/stormy.json", "rb")) == NULL) {
-        fprintf(stderr, "stormy: fopen() error\n");
-        return EXIT_FAILURE;
-    }
+    char *input;
     
+    input = (char *) calloc(BUF_SIZE, sizeof(char));
+    
+    file = fopen("../res/input.json", "rb");
+
     fseek(file, 0, SEEK_END);
-    file_size = ftell(file);
+    input_size = ftell(file);
     rewind(file);
     
-    if (fread(buffer, sizeof(char), BUF_SIZE, file) != file_size) {
-        fprintf(stderr, "stormy: fread() error\n");
-        return EXIT_FAILURE;
+    fread(input, sizeof(char), BUF_SIZE, file);
+    input[input_size] = '\0';
+    
+    fclose(file);
+    
+    root = json_decode(input);    
+    current = json_first_child(root);
+    
+    stormy_data.name = (char *) calloc(BUF_SIZE, sizeof(char));
+    
+    strcpy(stormy_data.name, current->string_);
+    
+    if (current != NULL)
+        current = current->next;
+    
+    json_foreach(object, current)
+        if (strcmp(object->key, "three") == 0)
+            stormy_data.three = object->number_;
+        else if (strcmp(object->key, "five") == 0)
+            stormy_data.five = object->number_;
+    
+    if (current != NULL)
+        current = current->next;
+    
+    stormy_data.array = (uint8_t *) calloc(9, sizeof(uint8_t));
+    array_index = 0;
+    
+    json_foreach(array, current)
+        stormy_data.array[array_index++] = array->number_;
+}
+
+void save_json_file() {
+    FILE *file;
+    
+    JsonNode *root, *current;
+    JsonNode *object, *array;
+    
+    char *output;
+    
+    root = json_mkobject();
+    
+    json_append_member(root, "name", json_mkstring(stormy_data.name));
+    json_append_member(root, "object", json_mkobject());
+    json_append_member(root, "array", json_mkarray());
+    
+    json_foreach(current, root) {
+        if (strcmp(current->key, "object") == 0) {
+            json_append_member(current, "three", json_mknumber(stormy_data.three));
+            json_append_member(current, "five", json_mknumber(stormy_data.five));
+        } else if (strcmp(current->key, "array") == 0) {
+            for (int i = 0; i < 9; i++)
+                json_append_element(current, json_mknumber(stormy_data.array[i]));
+        }
     }
     
-    buffer[file_size] = '\0';
+    output = json_encode(root);
     
-    root = json_decode(buffer);
+    file = fopen("../res/output.json", "wb");
+    fwrite(output, sizeof(char), strlen(output), file);
     
-    if (root == NULL) {
-        fprintf(stderr, "stormy: json_decode() error\n");
-        return EXIT_FAILURE;
-    }
-    
-    node = json_first_child(root);
-    
-    /* node: `name` */
-    
-    printf("%s: %s,\n", node->key, node->string_);
-    
-    if (node != NULL)
-        node = node->next;
-    
-    /* node: `object` */
-    
-    printf("%s: [\n", node->key);
-    
-    json_foreach(node_tmp, node) {
-        printf(
-            "    %s: %d\n", 
-            node_tmp->key, 
-            (int) node_tmp->number_
-        );
-    }
-    
-    printf("],\n");
-    
-    if (node != NULL)
-        node = node->next;
-    
-    /* node: `array` */
-    
-    printf("%s: [\n", node->key);
-    
-    json_foreach(node_tmp, node) {
-        printf(
-            "    %d,\n", 
-            (int) node_tmp->number_
-        );
-    }
-    
-    printf("]\n");
+    fclose(file);
+}
+
+int main(void) {
+    load_json_file();
+    save_json_file();
     
     return EXIT_SUCCESS;
 }
